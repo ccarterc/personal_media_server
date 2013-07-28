@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#view_panel{
+
+}
+a.movie_links{
+	display:inline-block;
+	margin:15px;
+	-webkit-box-shadow: 7px 7px 5px rgba(50, 50, 50, 0.75);
+-moz-box-shadow:    7px 7px 5px rgba(50, 50, 50, 0.75);
+box-shadow:         7px 7px 5px rgba(50, 50, 50, 0.75);
+text-align:center;
+text-decoration: none;
+color:black;
+font-size:24px;
+font-family:verdanna, arial;
+padding:1px;
+position:relative;
+}
+a.movie_links:hover{
+	border:1px solid blue;
+	padding:0px;
+}
+div.file_name{
+	display:block;
+	width:300px;
+	position:relative;
+}
+span.movie_title{
+	display:block;
+	position:relative;
+	width:300px;
+	margin-bottom:10px;
+}
+/*span.movie_title:hover{
+	display:block;
+	font-size:30px;	
+	border:10px solid blue;
+	background-color:rgba(200,200,200,.5);
+	margin-left:-10px;
+	border-radius: 20px;
+	margin-bottom:0px;	
+	margin-top:-10px;
+}*/
+.movie_info{
+	display:none;
+	width:500px;
+	position:absolute;
+	margin-left:auto;
+	margin-right:auto;	
+	top:50px;
+	left:-100px;
+	background-color:rgba(255,255,255,1);
+	border:1px black solid;
+	padding:5px;
+	border-radius:10px;
+	-webkit-box-shadow: 7px 7px 5px rgba(50, 50, 50, 0.75);
+	-moz-box-shadow:    7px 7px 5px rgba(50, 50, 50, 0.75);
+	box-shadow:         7px 7px 5px rgba(50, 50, 50, 0.75);
+	z-index:5;
+}
+.show_the_div{
+	display:block;
+}
+a.movie_links{
+
+}
+.similar_movies{	
+	font-size:24px;
+	text-align:center;
+}
+.similar_movies_title{
+	font-weight:bold;
+}
+#view_panel{
+	margin-left:100px;
+	margin-right:100px;
+}
+</style>
+<script src="http://code.jquery.com/jquery-2.0.1.min.js"></script>
+</head>
+
+<body>
+<!--<input type="button" id="basic" value="just get a thing"><br>-->
+<div id="intro">Welcome to my new app!  I got tired of waiting days for remote media library apps to load.  When hosting on your own local network, media should load FAST!  Also why not have an app that parses your filenames for you and gets rid of those pesky '.''s so common from a bittorrent download?  Why not have an app that goes onto the interwebs and looks for a dazzling movie poster to slap on the page as well?  And while we're at it, why shouldn't we have an app that recommends new movies for us to check out am I right?  (in walks my movie client)...  <br><br> This app currently just serves files from my own computer, but eventually this will be a single click install available for any windows/linux machine.  When you've had a change to test drive it, please <a href="https://docs.google.com/forms/d/1aWiLAUxuO7YSlwTkItAwaPvon9eL0bafkHOEfVq92M0/viewform">fill out a feedback form</a> for me.  :)</div><br>
+Blacklisted Filename Words<input type="text" id="blacklist" title="Some filenames may have too much junk in them.  Add words like 'bluray', '720p', '2010', 'yify' which may not be relevant to the actual title."><br>
+<input type="button" id="add_to_blacklist" value="add to blacklist"><br>
+<div id="blacklist_div"><ul></ul></div>
+<input type="button" id="get_stuff" value="retrieve your media"><br>
+<div id="menu_panel"></div>
+<div id="view_panel"></div>
+
+<script>
+
+$('#add_to_blacklist').click(function(){
+	var blacklist_term = $('#blacklist').val();
+	$('#blacklist_div ul').append("<li class='blacklist_terms'>"+blacklist_term+"</li>");
+	$('#blacklist').val("");
+});
+
+$('#get_stuff').click(function(){
+	var blacklist = [];
+	var i = 0;
+	$('li.blacklist_terms').each(function(){
+		blacklist[i] = $(this).text();
+		i++;
+	});
+	var jsonString;
+	if(blacklist.length == 0){
+		jsonString = {
+			"blacklist": "00000"
+		};
+	}else{
+		jsonString = {
+			"blacklist":blacklist
+		};		
+	}
+	
+
+	$.ajax({
+		url:"index.php",
+		type:"post",
+		data: jsonString,
+		dataType:"json",
+		success:function(data){
+			var num_items = data.length;
+			var string_buffer = "";
+			//console.log(data);
+			for(var i = 0; i < num_items; i++){									
+				//normal working
+				string_buffer += "<a href='movies/"+data[i][0]+"' target='_blank' class='movie_links'><div class='poster'></div><br><div class='file_name'><span class='movie_title'>"+data[i][2]+"</span></div><div class='movie_info'></div></a>";	
+
+				//trying to stream on seperate page
+				//string_buffer += "<a href='play_video.php?movie="+data[i][0]+"' target='_blank' class='movie_links'><div class='poster'></div><br><div class='file_name'><span class='movie_title'>"+data[i][2]+"</span></div><div class='movie_info'></div></a>";	
+			}		
+			$('#view_panel').html(string_buffer);
+			//console.log(data);
+			fill_posters();
+		}
+	});	
+});
+
+//$('#basic').click(function(){
+function fill_posters(){
+	$('div.file_name').each(function(){
+		var file_name = $(this).text();		
+		var current_div = $(this);
+		//file_name = file_name.replace(/[ ]/g,"+");
+		//alert(encodeURIComponent(file_name));
+		var link_thing = 'http://api.themoviedb.org/3/search/movie?api_key=8a8c4b8a5f5965c51d2aec6561ea401b&query='+encodeURIComponent(file_name);		
+	
+		$.get(link_thing, function(data){		
+			var base_url = "http://cf2.imgobject.com/t/p/w300";
+			//var result_length = data.length;
+			if(data.results[0]){
+				var image_name = data.results[0].poster_path;
+				current_div.parent().find('.poster').html('<img src="'+base_url+image_name+'">');
+				//current_div.parent().find('div.movie_info').text("real sample");
+				get_the_extra_info(data.results[0].id, current_div);				
+			}				
+			//alert($(this).parent().find('div.poster'));			
+			//var num_media = data.results.length;
+			//for(var i = 0; i < num_media; i++){
+			//	console.log(data);
+				//console.log(data.results[i].poster_path);	
+			//}
+			
+			//console.log();
+			
+			//get_the_poster(data.results[0].id);
+		});		
+	});	
+}
+//});
+function get_the_extra_info(data, current_div){
+	if(data){
+		var link = "http://private-1f148-themoviedb.apiary.io/3/movie/"+data+"?api_key=8a8c4b8a5f5965c51d2aec6561ea401b";
+		$.get(link, function(results){
+			var overview = results.overview;
+			display_the_info(overview, current_div);
+		});
+		
+		link = "http://private-1f148-themoviedb.apiary.io/3/movie/"+data+"/similar_movies?api_key=8a8c4b8a5f5965c51d2aec6561ea401b";
+		$.get(link, function(results){
+			var similar_movies = results;
+			var num_elements = results.results.length;
+			var movie_info_div = current_div.parent().find('.movie_info');
+			if(num_elements>0){
+				console.log(results);				
+				var string_buffer = "";
+				string_buffer += "<br><br><div class='similar_movies_title'>Other Movies You Might Like:</div>"
+				for(var i = 0; i < num_elements; i++){
+					string_buffer += '<div class="similar_movies">'+results.results[i].original_title+'</div>';					
+					if(i == 5){
+						break;
+					}
+				}
+				movie_info_div.append(string_buffer);	
+			}			
+		});
+	}else{
+		return false;
+	}
+}
+
+function display_the_info(over_text, current_div){
+	if(over_text){
+		current_div.parent().find('div.movie_info').html("<b>Story:</b> "+over_text+"");
+		//console.log(over_text);	
+	}				
+}
+
+$('#view_panel').on('mouseenter', 'a.movie_links', function(){
+	var movie_box = $(this).find('div.movie_info');
+	movie_box.show();
+	//alert('something happened');
+});
+
+$('#view_panel').on('mouseleave', 'a.movie_links', function(){
+	$(this).find('div.movie_info').hide();
+});
+
+
+
+
+
+function get_the_poster(data){
+	alert(data);
+	var link = "http://private-1f148-themoviedb.apiary.io/3/movie/"+data+"/images?api_key=8a8c4b8a5f5965c51d2aec6561ea401b";
+	$.get(link, function(new_data){
+		console.log(new_data);
+	});	
+}
+/*
+$.ajax({
+	url:"index.php",
+	type:"get",
+	dataType:"json",
+	success:function(data){		
+		console.log(data);
+	}
+});*/
+</script>
+</body>
+
+</html>
